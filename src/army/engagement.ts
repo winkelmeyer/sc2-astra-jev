@@ -8,6 +8,18 @@ import type { Squad, SquadOrders } from "./types.ts";
 
 export type Mode = "gather" | "attack" | "defend";
 
+export interface PlanRecord {
+	planId: number | null;
+	loop: number;
+	trigger: string;
+	latencyMs?: number;
+	costUsd?: number;
+	intent?: string;
+	summary?: string;
+	applied: boolean;
+	error?: string;
+}
+
 const LOOPS_PER_SECOND = 22.4;
 const MIN_REPLAN_LOOPS = 20 * LOOPS_PER_SECOND;
 const ATTACK_ARMY_SUPPLY = 60;
@@ -25,6 +37,9 @@ export class Commander {
 	pending = false;
 	planId = 0;
 	pendingTrigger = "";
+	readonly history: PlanRecord[] = [];
+	private inFlight: Promise<void> = Promise.resolve();
+	private replanTrigger: string | null = null;
 	private attackStartSupply = 0;
 	private threatClearSince = 0;
 	private readonly visited: Point2[] = [];
@@ -41,6 +56,11 @@ export class Commander {
 	}
 
 	update(world: World, squads: Squad[]): void {
+		if (this.replanTrigger && !this.pending) {
+			const trigger = this.replanTrigger;
+			this.replanTrigger = null;
+			this.requestPlan(world, squads, trigger, true);
+		}
 		const threat = this.baseThreat(world);
 		if (threat.length >= MIN_THREAT_UNITS) {
 			this.threatClearSince = world.loop;
@@ -92,6 +112,10 @@ export class Commander {
 		};
 	}
 
+	settled(): Promise<void> {
+		return this.inFlight;
+	}
+
 	objective(world: World): Point2 {
 		return this.mode === "gather" ? this.rally(world) : (this.plan?.target ?? this.defaultTarget(world));
 	}
@@ -106,7 +130,16 @@ export class Commander {
 		this.log.write({ type: "mode", loop: world.loop, mode, trigger });
 		this.log.feed.push(world.loop, "mode", `MODE ${mode.toUpperCase()}: ${trigger}`);
 		console.log(`[commander] ${mode}: ${trigger}`);
-		if (!this.useAstra || this.pending) return;
+		this.requestPlan(world, squads, trigger, urgent);
+	}
+
+	private requestPlan(world: World, squads: Squad[], trigger: string, urgent: boolean): void {
+		const mode = this.mode;
+		if (!this.useAstra || mode === "gather") return;
+		if (this.pending) {
+			this.replanTrigger = `${trigger} (queued while Astra was busy)`;
+			return;
+		}
 		if (world.loop - this.planLoop < (urgent ? MIN_URGENT_REPLAN_LOOPS : MIN_REPLAN_LOOPS)) return;
 		this.planLoop = world.loop;
 		this.pending = true;
@@ -114,20 +147,24 @@ export class Commander {
 		this.log.feed.push(world.loop, "astra", `ASTRA thinking: ${trigger}`);
 		const summary = battlefieldSummary(world, squads, trigger, this.rally(world));
 		const requestedLoop = world.loop;
-		planEngagement(summary)
+		this.inFlight = planEngagement(summary)
 			.then(({ plan, latencyMs, cost }) => {
-				if (this.mode === mode) {
+				const applied = this.mode === mode;
+				if (applied) {
 					this.plan = plan;
 					this.planId++;
 				}
+				if (!applied) this.replanTrigger = `new plan for ${this.mode}: the ${mode} plan arrived after the situation changed`;
+				this.history.push({ planId: applied ? this.planId : null, loop: requestedLoop, trigger, latencyMs, costUsd: cost.cost, intent: plan.intent, summary: plan.summary, applied });
 				this.log.astra({ loop: requestedLoop, trigger, latencyMs, cost, applied: this.mode === mode, plan }, true);
 				console.log(`[astra] ${latencyMs}ms $${cost.cost.toFixed(4)} ${plan.intent}: ${plan.summary}`);
-				this.log.feed.push(requestedLoop, "astra", `ASTRA plan #${this.planId} ${plan.intent.toUpperCase()} (${(latencyMs / 1000).toFixed(0)}s, $${cost.cost.toFixed(3)}): ${plan.summary}`);
-				for (const sq of plan.squads) this.log.feed.push(requestedLoop, "astra", `  ${sq.squadId} [${sq.role}] ${sq.objective}`);
+				this.log.feed.push(requestedLoop, "astra", `ASTRA ${applied ? `plan #${this.planId}` : "discarded plan"} ${plan.intent.toUpperCase()} (${(latencyMs / 1000).toFixed(0)}s, $${cost.cost.toFixed(3)}): ${plan.summary}`);
+				if (applied) for (const sq of plan.squads) this.log.feed.push(requestedLoop, "astra", `  ${sq.squadId} [${sq.role}] ${sq.objective}`);
 				if (plan.intent === "retreat" && this.mode !== "defend") this.mode = "gather";
 			})
 			.catch((error: unknown) => {
 				this.log.astra({ loop: requestedLoop, trigger, error: String(error) }, false);
+				this.history.push({ planId: null, loop: requestedLoop, trigger, applied: false, error: String(error) });
 				this.log.feed.push(requestedLoop, "astra", `ASTRA failed, scripted plan stays: ${String(error).slice(0, 80)}`, { r: 255, g: 80, b: 80 });
 				console.error(`[astra] failed, keeping scripted default: ${String(error)}`);
 			})

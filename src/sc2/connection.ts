@@ -18,6 +18,7 @@ export class Sc2Connection {
 		private readonly socket: WebSocket,
 		private readonly requestType: protobuf.Type,
 		private readonly responseType: protobuf.Type,
+		private readonly actionResult: protobuf.Enum,
 	) {
 		socket.on("message", (data: Buffer) => this.onMessage(data));
 		socket.on("close", () => this.pending?.reject(new Error("SC2 websocket closed")));
@@ -33,7 +34,7 @@ export class Sc2Connection {
 		while (true) {
 			try {
 				const socket = await connectOnce(`ws://127.0.0.1:${port}/sc2api`);
-				return new Sc2Connection(socket, requestType, responseType);
+				return new Sc2Connection(socket, requestType, responseType, root.lookupEnum("SC2APIProtocol.ActionResult"));
 			} catch (error) {
 				if (Date.now() > deadline) throw new Error(`SC2 did not open port ${port}: ${String(error)}`);
 				await new Promise((r) => setTimeout(r, 1000));
@@ -45,6 +46,10 @@ export class Sc2Connection {
 		const run = this.queue.then(() => this.send(name, payload));
 		this.queue = run.catch(() => undefined);
 		return run as Promise<T>;
+	}
+
+	actionResultName(value: number): string {
+		return this.actionResult.valuesById[value] ?? `ActionResult${value}`;
 	}
 
 	close(): void {

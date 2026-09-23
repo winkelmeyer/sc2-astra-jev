@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astra + Jev</title>
+<style>
+	:root {
+		--bg: #0d1016; --panel: #151a23; --line: #232a37; --text: #d9dee7; --dim: #7d8696;
+		--astra: #6fb6ff; --astra-bg: rgba(111, 182, 255, 0.08);
+		--engage: #4fd67a; --hold: #f3c94a; --retreat: #f06262; --mode: #ffaa3c;
+		font-family: ui-sans-serif, -apple-system, "Segoe UI", sans-serif;
+	}
+	* { box-sizing: border-box; }
+	body { margin: 0; background: var(--bg); color: var(--text); font-size: 13px; }
+	.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+	header { display: flex; gap: 18px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; flex-wrap: wrap; }
+	header .stat { color: var(--dim); } header .stat b { color: var(--text); font-weight: 600; }
+	.badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+	.b-engage { background: rgba(79, 214, 122, 0.15); color: var(--engage); }
+	.b-hold { background: rgba(243, 201, 74, 0.15); color: var(--hold); }
+	.b-retreat { background: rgba(240, 98, 98, 0.15); color: var(--retreat); }
+	.b-astra { background: var(--astra-bg); color: var(--astra); }
+	.b-mode { background: rgba(255, 170, 60, 0.15); color: var(--mode); }
+	main { display: grid; grid-template-columns: 340px 1fr 420px; gap: 12px; padding: 12px; align-items: start; }
+	@media (max-width: 1300px) { main { grid-template-columns: 1fr; } }
+	section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+	h2 { margin: 0 0 10px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+	h2 .who { color: var(--astra); }
+	.plan-summary { font-size: 14px; line-height: 1.45; margin: 8px 0; }
+	.kv { color: var(--dim); margin: 4px 0; line-height: 1.4; } .kv b { color: var(--text); font-weight: 500; }
+	.thinking { margin-top: 10px; padding: 8px; border-radius: 6px; background: var(--astra-bg); color: var(--astra); display: flex; gap: 8px; align-items: center; }
+	.dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1s infinite; flex: none; }
+	@keyframes pulse { 50% { opacity: 0.25; } }
+	.history { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+	.history div { padding: 5px 0; border-bottom: 1px dashed var(--line); color: var(--dim); line-height: 1.35; }
+	.history b { color: var(--astra); font-weight: 600; }
+	.squads { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+	.squad { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; border-left: 3px solid var(--dim); }
+	.squad.engage { border-left-color: var(--engage); } .squad.hold { border-left-color: var(--hold); } .squad.retreat { border-left-color: var(--retreat); }
+	.squad .head { padding: 10px 12px; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+	.squad .head .id { font-weight: 700; font-size: 14px; }
+	.squad .head .meta { color: var(--dim); font-size: 12px; text-align: right; }
+	.says { background: var(--astra-bg); padding: 10px 12px; border-top: 1px solid var(--line); }
+	.says .label, .decides .label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; display: flex; justify-content: space-between; }
+	.says .label { color: var(--astra); }
+	.says .cond { margin: 4px 0; line-height: 1.4; } .says .cond span { color: var(--dim); }
+	.handoff { text-align: center; color: var(--dim); font-size: 11px; padding: 4px; border-top: 1px solid var(--line); background: #11151d; }
+	.decides { padding: 10px 12px; border-top: 1px solid var(--line); }
+	.decides .label { color: var(--text); }
+	.bar { display: grid; grid-template-columns: 110px 1fr 40px; gap: 8px; align-items: center; margin: 5px 0; font-size: 12px; }
+	.bar .track { height: 8px; background: #0b0e13; border-radius: 4px; overflow: hidden; position: relative; }
+	.bar .fill { height: 100%; border-radius: 4px; transition: width 0.25s; }
+	.bar .thr { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--dim); }
+	.enemies { color: var(--retreat); font-size: 12px; margin-top: 6px; }
+	.none { color: var(--dim); font-style: italic; }
+	.chips { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+	.chip { border: 1px solid var(--line); background: none; color: var(--dim); border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
+	.chip.on { color: var(--text); border-color: var(--dim); }
+	.feed { max-height: calc(100vh - 150px); overflow-y: auto; font-size: 12px; }
+	.feed div { padding: 4px 0; border-bottom: 1px solid var(--line); line-height: 1.35; }
+	.feed .t { color: var(--dim); margin-right: 6px; }
+	.k-astra { color: var(--astra); } .k-mode { color: var(--mode); } .k-build { color: var(--dim); } .k-jev { color: var(--text); }
+	.k-jev.engage { color: var(--engage); } .k-jev.hold { color: var(--hold); } .k-jev.retreat { color: var(--retreat); }
+	.ended { padding: 14px 16px; background: var(--astra-bg); color: var(--astra); font-weight: 600; }
+	#offline { color: var(--retreat); }
+</style>
+</head>
+<body>
+<header id="top"><span class="stat">waiting for the game…</span></header>
+<div id="ended"></div>
+<main>
+	<section id="astra"><h2><span class="who">Astra</span> · system 2 · plans once per engagement</h2><div class="none">no plan yet</div></section>
+	<div>
+		<h2 style="margin: 2px 2px 10px">Astra orders → <span style="color: var(--text)">Jev</span> verdict · system 1 · every squad ~2× per game second</h2>
+		<div class="squads" id="squads"></div>
+	</div>
+	<section>
+		<h2>Every decision</h2>
+		<div class="chips" id="chips"></div>
+		<div class="feed mono" id="feed"></div>
+	</section>
+</main>
+<script>
+	const KINDS = ["all", "jev", "astra", "mode", "build"];
+	const THRESHOLDS = { engage: 0.55, retreat: 0.6, blinkBack: 0.7, forcefield: 0.7, guardianShield: 0.7 };
+	const COLORS = { engage: "var(--engage)", retreat: "var(--retreat)", blinkBack: "var(--astra)", forcefield: "var(--astra)", guardianShield: "var(--astra)" };
+	let filter = "all";
+	let latest = null;
+
+	const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+	const comp = (o) => Object.entries(o).map(([n, c]) => `${c} ${n}`).join(", ");
+
+	document.getElementById("chips").innerHTML = KINDS.map((k) => `<button class="chip${k === filter ? " on" : ""}" data-k="${k}">${k}</button>`).join("");
+	document.getElementById("chips").addEventListener("click", (e) => {
+		const k = e.target.dataset.k;
+		if (!k) return;
+		filter = k;
+		document.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c.dataset.k === k));
+		if (latest) renderFeed(latest.feed);
+	});
+
+	function renderTop(s) {
+		const errors = Object.values(s.actionErrors).reduce((a, b) => a + b, 0);
+		document.getElementById("top").innerHTML = `
+			<span class="mono" style="font-size:16px;font-weight:700">${esc(s.clock)}</span>
+			<span class="badge b-mode">${esc(s.astra.mode)}</span>
+			<span class="stat">army <b>${s.economy.army}</b></span>
+			<span class="stat">supply <b>${esc(s.economy.supply)}</b></span>
+			<span class="stat">probes <b>${s.economy.probes}</b> · bases <b>${s.economy.bases}</b></span>
+			<span class="stat">minerals <b>${s.economy.minerals}</b> · gas <b>${s.economy.gas}</b></span>
+			<span class="stat">LLM cost <b>$${s.cost.costUsd.toFixed(3)}</b> (market $${s.cost.marketCostUsd.toFixed(3)})</span>
+			<span class="stat" title="${esc(JSON.stringify(s.actionErrors))}">rejected orders <b>${errors}</b></span>`;
+	}
+
+	function renderAstra(a) {
+		const p = a.plan;
+		let html = `<h2><span class="who">Astra</span> · system 2 · plans once per engagement</h2>`;
+		if (p) {
+			html += `<div><span class="badge b-astra">plan #${a.planId}</span> <span class="badge b-mode">${esc(p.intent)}</span></div>
+				<div class="plan-summary">${esc(p.summary)}</div>
+				<div class="kv">target <b class="mono">(${Math.round(p.target.x)}, ${Math.round(p.target.y)})</b> · rally <b class="mono">(${Math.round(p.rally.x)}, ${Math.round(p.rally.y)})</b></div>
+				<div class="kv">abort when: <b>${esc(p.abortWhen)}</b></div>`;
+		} else {
+			html += `<div class="none">No plan yet: squads run scripted default orders.</div>`;
+		}
+		if (a.pending) html += `<div class="thinking"><span class="dot"></span><span>thinking: ${esc(a.pending)}</span></div>`;
+		if (a.history.length) {
+			html += `<div class="history"><h2>Plan history</h2>` + a.history.slice().reverse().map((h) => `<div>
+				<b>${h.planId ? `#${h.planId}` : h.error ? "failed" : "discarded"}</b> ${h.intent ? esc(h.intent) : ""} · ${h.latencyMs ? `${(h.latencyMs / 1000).toFixed(0)}s` : ""} ${h.costUsd !== undefined ? `· $${h.costUsd.toFixed(3)}` : ""}<br>${esc(h.trigger)}</div>`).join("") + `</div>`;
+		}
+		document.getElementById("astra").innerHTML = html;
+	}
+
+	function bar(key, value) {
+		const v = value ?? 0;
+		return `<div class="bar"><span>${key}</span><div class="track"><div class="fill" style="width:${(v * 100).toFixed(0)}%;background:${COLORS[key] ?? "var(--dim)"}"></div><div class="thr" style="left:${THRESHOLDS[key] * 100}%"></div></div><span class="mono">${value === undefined ? "–" : v.toFixed(2)}</span></div>`;
+	}
+
+	function renderSquads(squads) {
+		document.getElementById("squads").innerHTML = squads.map((q) => {
+			const d = q.decision;
+			const o = q.orders;
+			const probs = Object.keys(d.probabilities);
+			const extra = probs.filter((k) => k !== "engage" && k !== "retreat");
+			const contact = Object.keys(q.enemies).length ? `<div class="enemies">in range: ${esc(comp(q.enemies))}</div>` : `<div class="none">no contact, following orders to (${Math.round(o.target.x)}, ${Math.round(o.target.y)})</div>`;
+			return `<div class="squad ${d.stance}">
+				<div class="head"><span class="id">${esc(q.id)} <span class="badge ${`b-${d.stance}`}">${d.stance}</span></span><span class="meta">${esc(o.role)} · ${esc(comp(q.units))} · ${q.hp}% hp</span></div>
+				${q.fromPlan ? `<div class="says"><div class="label"><span>Astra says</span><span>plan #${q.fromPlan}</span></div>
+					<div class="cond"><span>objective</span> ${esc(o.objective)}</div>
+					<div class="cond"><span>engage when</span> ${esc(o.engageWhen)}</div>
+					<div class="cond"><span>retreat when</span> ${esc(o.retreatWhen)}</div>
+					${o.focusPriority.length ? `<div class="cond"><span>focus</span> ${esc(o.focusPriority.join(" › "))}</div>` : ""}
+				</div>` : `<div class="says" style="opacity:0.7"><div class="label"><span>Astra says</span><span>no plan for this squad</span></div>
+					<div class="cond" title="${esc(`engage when: ${o.engageWhen}\nretreat when: ${o.retreatWhen}`)}"><span>scripted default</span> ${esc(o.objective)} · fight when even, retreat when clearly losing</div>
+				</div>`}
+				<div class="handoff">↓ Jev checks these conditions against what the squad sees</div>
+				<div class="decides"><div class="label"><span>Jev decides ${d.thinking ? `<span class="dot" style="display:inline-block;color:var(--astra)"></span>` : ""}</span><span style="color:var(--dim)">${d.source} · ${d.ageSeconds}s ago</span></div>
+					${probs.length ? bar("engage", d.probabilities.engage) + bar("retreat", d.probabilities.retreat) + extra.map((k) => bar(k, d.probabilities[k])).join("") : `<div class="none">no Jev call yet (${d.source})</div>`}
+					${d.focus ? `<div class="kv">focus fire <b>${esc(d.focus)}</b></div>` : ""}
+					${contact}
+				</div>
+			</div>`;
+		}).join("") || `<div class="none">no army yet</div>`;
+	}
+
+	function renderFeed(feed) {
+		const rows = feed.filter((e) => filter === "all" || e.kind === filter).slice().reverse();
+		document.getElementById("feed").innerHTML = rows.map((e) => {
+			const stance = e.kind === "jev" ? (/RETREAT\b/.test(e.text.split("|")[0]) ? "retreat" : /HOLD\b/.test(e.text.split("|")[0]) ? "hold" : "engage") : "";
+			return `<div class="k-${e.kind} ${stance}"><span class="t">${esc(e.clock)}</span>${esc(e.text)}</div>`;
+		}).join("");
+	}
+
+	function render(s) {
+			if (s.ended) {
+				document.getElementById("ended").innerHTML = `<div class="ended">Game over: ${esc(s.ended.result)} at ${esc(s.ended.gameTime)} · Jev ${s.ended.jevCalls} calls · Astra ${s.ended.astraCalls} · $${Number(s.ended.costUsd).toFixed(3)}</div>`;
+				return;
+			}
+			latest = s;
+			renderTop(s);
+			renderAstra(s.astra);
+			renderSquads(s.squads);
+			renderFeed(s.feed);
+	}
+
+	function connect() {
+		const source = new EventSource("/events");
+		source.onmessage = (msg) => render(JSON.parse(msg.data));
+		source.onerror = () => {
+			document.getElementById("top").insertAdjacentHTML("beforeend", `<span id="offline"> · disconnected</span>`);
+			source.close();
+			setTimeout(connect, 2000);
+		};
+	}
+	if (location.search.includes("static")) fetch("/snapshot.json").then((r) => r.json()).then((s) => s && render(s));
+	else connect();
+</script>
+</body>
+</html>
