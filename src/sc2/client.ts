@@ -68,6 +68,10 @@ export class Sc2Client {
 		});
 	}
 
+	actionResultName(value: number): string {
+		return this.connection.actionResultName(value);
+	}
+
 	async moveCamera(center: Point2): Promise<void> {
 		await this.connection.request("action", {
 			actions: [{ actionRaw: { cameraMove: { centerWorldSpace: { x: center.x, y: center.y } } } }],

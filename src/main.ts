@@ -7,7 +7,9 @@ import type { Squad } from "./army/types.ts";
 import { Tactician } from "./brain/tactician.ts";
 import { JEV_INTERVAL_LOOPS, SC2_PORT, SC2_ROOT, STEP_SIZE } from "./config.ts";
 import { CameraDirector } from "./hud/camera.ts";
-import { describeCommands } from "./hud/describe.ts";
+import { abilityLabel, describeCommands } from "./hud/describe.ts";
+import { PanelServer } from "./hud/panelServer.ts";
+import { buildSnapshot } from "./hud/snapshot.ts";
 import { drawOverlay } from "./hud/overlay.ts";
 import { GameLog } from "./log.ts";
 import { Macro } from "./macro/buildOrder.ts";
@@ -33,6 +35,8 @@ const { values: args } = parseArgs({
 		smoke: { type: "boolean", default: false },
 		"max-loops": { type: "string" },
 		"no-camera": { type: "boolean", default: false },
+		"no-panel": { type: "boolean", default: false },
+		"panel-port": { type: "string", default: "8765" },
 	},
 });
 
@@ -62,6 +66,13 @@ const ctx = await GameContext.build(client, info, first.observation.rawData.unit
 log.write({ type: "start", map: info.mapName, race: args.race, difficulty: args.difficulty, realtime, useLlm, expansions: ctx.expansions.map((e) => ({ x: e.pos.x, y: e.pos.y, d: Math.round(e.groundDistance) })) });
 console.log(`[game] ${info.mapName} vs ${args.race} ${args.difficulty} | llm=${useLlm} realtime=${realtime} | log ${log.path}`);
 
+const panel = args["no-panel"] ? null : new PanelServer(Number(args["panel-port"]));
+if (panel) {
+	console.log(`[panel] ${panel.url}`);
+	panel.open();
+}
+const actionErrors: Record<string, number> = {};
+
 const memory = new EnemyMemory();
 const macro = new Macro(client, ctx);
 const squadManager = new SquadManager();
@@ -85,9 +96,13 @@ while (true) {
 	}
 	if (finalLoop >= maxLoops) break;
 
+	for (const error of response.actionErrors ?? []) {
+		const key = `${abilityLabel(error.abilityId ?? 0)}: ${client.actionResultName(error.result ?? 0)}`;
+		actionErrors[key] = (actionErrors[key] ?? 0) + 1;
+	}
 	const world = new World(ctx, response.observation, memory);
 	if (world.loop % 1344 < STEP_SIZE) {
-		const status = { loop: world.loop, supply: `${world.supplyUsed}/${world.supplyCap}`, army: world.armySupply, probes: world.probes.length, bases: world.nexuses.length, gates: world.all(62).length + world.all(133).length, minerals: world.minerals, gas: world.gas, mode: commander.mode, costUsd: Number(log.cost.total.toFixed(4)), marketCostUsd: Number(log.cost.marketTotal.toFixed(4)) };
+		const status = { loop: world.loop, supply: `${world.supplyUsed}/${world.supplyCap}`, army: world.armySupply, probes: world.probes.length, bases: world.nexuses.length, gates: world.all(62).length + world.all(133).length, minerals: world.minerals, gas: world.gas, mode: commander.mode, costUsd: Number(log.cost.total.toFixed(4)), marketCostUsd: Number(log.cost.marketTotal.toFixed(4)), rejected: actionErrors };
 		log.write({ type: "status", ...status });
 		console.log(`[status] ${JSON.stringify(status)}`);
 	}
@@ -107,7 +122,8 @@ while (true) {
 			pendingJev = null;
 		});
 		if (!realtime) await pendingJev;
-		await drawOverlay(client, world, commander, squads, log);
+		await drawOverlay(client, world, commander, squads, panel?.url ?? null);
+		panel?.publish(buildSnapshot(world, commander, squads, log, actionErrors));
 	}
 
 	const main = largest(squads);
@@ -128,12 +144,14 @@ while (true) {
 	if (!realtime) await client.step(STEP_SIZE);
 }
 
+await commander.settled();
 const resultName = Object.entries(GameResult).find(([, v]) => v === result)?.[0] ?? String(result);
 mkdirSync("replays", { recursive: true });
 const replayPath = join("replays", `${info.mapName.replace(/\W+/g, "")}-${args.race}-${args.difficulty}-${resultName}-${Date.now()}.SC2Replay`);
 writeFileSync(replayPath, await client.saveReplay());
-const summary = { result: resultName, gameTime: `${Math.floor(finalLoop / 22.4 / 60)}:${String(Math.floor(finalLoop / 22.4) % 60).padStart(2, "0")}`, loops: finalLoop, replay: replayPath, ...log.summary() };
+const summary = { actionErrors, result: resultName, gameTime: `${Math.floor(finalLoop / 22.4 / 60)}:${String(Math.floor(finalLoop / 22.4) % 60).padStart(2, "0")}`, loops: finalLoop, replay: replayPath, ...log.summary() };
 log.write({ type: "end", ...summary });
+panel?.publish({ ended: summary });
 console.log(`[game] ${JSON.stringify(summary)}`);
 await client.leave();
 await client.quit();

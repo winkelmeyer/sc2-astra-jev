@@ -32,7 +32,9 @@ By default the game is stepped: the loop waits for in-flight Jev calls before ad
 
 The camera follows the action: the biggest fight first, then the latest build / warp-in / blink / force field, otherwise the army. Each shot holds about 3 game seconds unless a fight outranks it.
 
-The window shows the current Astra plan in the top left and each squad's stance and Jev probabilities, both on screen and above the squad.
+A live decision panel opens in your browser at `http://127.0.0.1:8765` (`--no-panel` to skip, `--panel-port` to move it). Every squad gets a card: Astra's orders for it (objective, engage-when, retreat-when, focus order, which plan they came from) right above Jev's current verdict (stance, probability bars against the thresholds, focus target). Beside it are Astra's plan and plan history, a filterable feed of every decision (Jev calls tagged with the plan they judged against, Astra plans, mode changes, builds / warp-ins / spells), and live cost plus rejected-order counts. `?static` renders one snapshot without the live stream.
+
+The game window keeps only map markers: a label over each squad, a line from each squad to its Astra target in its Jev stance color, and spheres on Astra's target and rally.
 
 ## Output
 

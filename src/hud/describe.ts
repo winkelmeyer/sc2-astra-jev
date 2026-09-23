@@ -37,3 +37,7 @@ export function describeCommands(commands: Command[]): string[] {
 	}
 	return [...counts].map(([label, n]) => (n > 1 ? `${label} x${n}` : label));
 }
+
+export function abilityLabel(abilityId: number): string {
+	return LABELS[abilityId] ?? `ability ${abilityId}`;
+}
