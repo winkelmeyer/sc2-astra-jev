@@ -23,11 +23,14 @@ pnpm play                                   # vs random Medium AI on Acropolis, 
 pnpm play --difficulty VeryHard --race zerg
 pnpm play --no-llm                          # scripted baseline, same macro and micro, no models
 pnpm play --realtime                        # game runs at real speed, Jev calls never block
+pnpm play --no-camera                       # leave the camera where you put it
 pnpm smoke                                  # 800 loops, no models: checks the protocol layer
 pnpm probe:jev && pnpm probe:astra          # one canned call to each model
 ```
 
 By default the game is stepped: the loop waits for in-flight Jev calls before advancing, so decisions happen at a fixed game-time rate no matter how slow the network is. Astra never blocks the loop. Squads fight on a scripted default plan until Astra's plan arrives (about 20–30s wall time).
+
+The camera follows the action: the biggest fight first, then the latest build / warp-in / blink / force field, otherwise the army. Each shot holds about 3 game seconds unless a fight outranks it.
 
 The window shows the current Astra plan in the top left and each squad's stance and Jev probabilities, both on screen and above the squad.
 

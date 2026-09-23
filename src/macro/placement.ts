@@ -56,8 +56,8 @@ export class Placer {
 
 	async warpSpots(abilityId: number, pylon: Point2, count: number): Promise<Point2[]> {
 		const candidates: Point2[] = [];
-		for (let dx = -5; dx <= 5; dx += 1.5) {
-			for (let dy = -5; dy <= 5; dy += 1.5) {
+		for (let dx = -5; dx <= 5; dx += 2) {
+			for (let dy = -5; dy <= 5; dy += 2) {
 				const p = { x: pylon.x + dx, y: pylon.y + dy };
 				if (distance(p, pylon) < 2 || distance(p, pylon) > 5.5) continue;
 				if (!this.ctx.pathing.value(p.x, p.y)) continue;

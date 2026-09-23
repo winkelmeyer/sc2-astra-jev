@@ -68,6 +68,12 @@ export class Sc2Client {
 		});
 	}
 
+	async moveCamera(center: Point2): Promise<void> {
+		await this.connection.request("action", {
+			actions: [{ actionRaw: { cameraMove: { centerWorldSpace: { x: center.x, y: center.y } } } }],
+		});
+	}
+
 	async placements(abilityId: number, positions: Point2[]): Promise<boolean[]> {
 		if (positions.length === 0) return [];
 		const response = await this.connection.request<{ placements?: { result?: number }[] }>("query", {

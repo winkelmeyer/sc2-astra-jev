@@ -6,6 +6,7 @@ import { SquadManager, squadCenter } from "./army/squads.ts";
 import type { Squad } from "./army/types.ts";
 import { Tactician } from "./brain/tactician.ts";
 import { JEV_INTERVAL_LOOPS, SC2_PORT, SC2_ROOT, STEP_SIZE } from "./config.ts";
+import { CameraDirector } from "./hud/camera.ts";
 import { describeCommands } from "./hud/describe.ts";
 import { drawOverlay } from "./hud/overlay.ts";
 import { GameLog } from "./log.ts";
@@ -31,6 +32,7 @@ const { values: args } = parseArgs({
 		"no-llm": { type: "boolean", default: false },
 		smoke: { type: "boolean", default: false },
 		"max-loops": { type: "string" },
+		"no-camera": { type: "boolean", default: false },
 	},
 });
 
@@ -66,6 +68,7 @@ const squadManager = new SquadManager();
 const commander = new Commander(log, useLlm);
 const tactician = new Tactician(client, log, useLlm);
 const cache = new CommandCache();
+const camera = args["no-camera"] ? null : new CameraDirector();
 let lastMacro = -MACRO_INTERVAL_LOOPS;
 let lastJev = -JEV_INTERVAL_LOOPS;
 let pendingJev: Promise<void> | null = null;
@@ -120,6 +123,8 @@ while (true) {
 	const issued = cache.filter(commands, world.loop);
 	for (const line of describeCommands(issued)) log.feed.push(world.loop, "build", line);
 	await client.act(issued);
+	const shot = camera?.next(world, squads, issued);
+	if (shot) await client.moveCamera(shot);
 	if (!realtime) await client.step(STEP_SIZE);
 }
 

@@ -13,6 +13,8 @@ function sentryTarget(world: World): number {
 }
 
 function gatewayUnit(world: World, budget: Budget): number | undefined {
+	const coreReady = world.ready(Unit.CYBERNETICSCORE).length > 0;
+	if (!coreReady) return budget.minerals >= 300 && budget.canAfford(Unit.ZEALOT) ? Unit.ZEALOT : undefined;
 	if (world.count(Unit.SENTRY) < sentryTarget(world) && budget.canAfford(Unit.SENTRY)) return Unit.SENTRY;
 	if (budget.canAfford(Unit.STALKER)) return Unit.STALKER;
 	if (budget.gas < 50 && budget.minerals >= 300 && budget.canAfford(Unit.ZEALOT)) return Unit.ZEALOT;
