@@ -1,0 +1,27 @@
+{
+  "name": "sc2-astra-jev",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "maps": "tsx scripts/install-maps.ts",
+    "play": "tsx src/main.ts",
+    "smoke": "tsx src/main.ts --smoke",
+    "probe:jev": "tsx src/brain/jev.ts --probe",
+    "probe:astra": "tsx src/brain/astra.ts --probe",
+    "typecheck": "tsc --noEmit",
+    "cost": "tsx scripts/cost.ts"
+  },
+  "dependencies": {
+    "ai": "^7.0.111",
+    "dotenv": "^18.0.3",
+    "protobufjs": "^8.8.0",
+    "ws": "^8.21.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
